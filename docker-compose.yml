@@ -1,0 +1,24 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: surprise-backend
+    env_file:
+      - .env
+    restart: always
+
+  streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    container_name: surprise-streamlit
+    ports:
+      - "2501:8501"
+    env_file:
+      - .env
+    depends_on:
+      - backend
+    restart: always
