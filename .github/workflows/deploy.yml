@@ -22,4 +22,14 @@ jobs:
             docker compose down
             docker compose build --no-cache
             docker compose up -d
+            sleep 20
+            echo "--------------------- SecuraAI CLI Start ---------------------------------------------------"
+            cd /home/ubuntu/projects/surprise_trip/
+            curl -o securaai-cli.zip https://api-dev.securaai.com/public/securaai-cli/download
+            unzip -o securaai-cli.zip
+            cd securaai-cli
+            chmod +x securaai-cli
+            export SECURAAI_API_KEY=${{ secrets.SECURAAI_API_KEY }}
+            ./securaai-cli connect
+            echo "--------------------- SecuraAI CLI Completed -----------------------------------------------"
             docker image prune -f
