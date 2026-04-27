@@ -4,7 +4,6 @@ from surprise_travel.crew import SurpriseTravelCrew
 
 
 def run():
-    # Replace with your inputs, it will automatically interpolate any tasks and agents information
     inputs = {
         'origin': 'São Paulo, GRU',
         'destination': 'New York, JFK',
@@ -13,14 +12,12 @@ def run():
         'flight_information': 'GOL 1234, leaving at June 30th, 2024, 10:00',
         'trip_duration': '14 days'
     }
+    print("Running crew...")
     result = SurpriseTravelCrew().crew().kickoff(inputs=inputs)
-    print(result)
+    print("Result:\n", result)
 
 
 def train():
-    """
-    Train the crew for a given number of iterations.
-    """
     inputs = {
         'origin': 'São Paulo, GRU',
         'destination': 'New York, JFK',
@@ -30,7 +27,15 @@ def train():
         'trip_duration': '14 days'
     }
     try:
-        SurpriseTravelCrew().crew().train(n_iterations=int(sys.argv[1]), inputs=inputs)
-
+        SurpriseTravelCrew().crew().train(
+            n_iterations=int(sys.argv[1]),
+            inputs=inputs
+        )
     except Exception as e:
         raise Exception(f"An error occurred while training the crew: {e}")
+
+
+# ✅ ONLY HERE (outside functions)
+if __name__ == "__main__":
+    print("Starting Surprise Travel App...\n")
+    run()

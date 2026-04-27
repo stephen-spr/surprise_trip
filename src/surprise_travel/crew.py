@@ -1,22 +1,23 @@
 from crewai import Agent, Crew, Process, Task
 from crewai.project import CrewBase, agent, crew, task
-
-# Uncomment the following line to use an example of a custom tool
-# from surprise_travel.tools.custom_tool import MyCustomTool
-
-# Check our tools documentation for more information on how to use them
 from crewai_tools import SerperDevTool, ScrapeWebsiteTool
 from pydantic import BaseModel, Field
 from typing import List, Optional
 import re
+import os
 
-# SECURITY FIX: ASI06: Memory & Context Poisoning (Misinformation) for SerperDevTool
-# Vulnerability: ASI06: Memory & Context Poisoning (Misinformation)
-# Item: SerperDevTool
+# ✅ Resolve absolute paths (FIX for Docker)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# ✅ Load API key
+SERPER_API_KEY = os.getenv("SERPER_API_KEY")
+
+# ✅ Create tools once (reuse)
+search_tool = SerperDevTool(api_key=SERPER_API_KEY)
+scrape_tool = ScrapeWebsiteTool()
+
 
 def filter_malicious_snippets(prompt: str) -> str:
-    '''Sanitize the prompt to filter out malicious snippets.'''
-    # Example of filtering for known harmful patterns
     harmful_patterns = [
         r'\b(?:malicious|harmful|dangerous|unsafe)\b',
         r'\b(?:drop|delete|truncate|alter|insert)\b',
@@ -27,67 +28,57 @@ def filter_malicious_snippets(prompt: str) -> str:
     return prompt
 
 
-# SECURITY FIX: ASI01: Agent Goal Hijack (Indirect Prompt Injection) for SerperDevTool
-# Vulnerability: ASI01: Agent Goal Hijack (Indirect Prompt Injection)
-# Item: SerperDevTool
-
-
-# SECURITY FIX: ASI01: Agent Goal Hijack (Indirect Prompt Injection) for ScrapeWebsiteTool
-# Vulnerability: ASI01: Agent Goal Hijack (Indirect Prompt Injection)
-# Item: ScrapeWebsiteTool
-
 def sanitize_prompt(prompt: str) -> str:
-    '''Filter the prompt to prevent indirect prompt injection.'''
-    # Basic guardrails filtering for prompt injection
     if re.search(r'\b(?:execute|run|command|script|eval|system)\b', prompt, re.IGNORECASE):
         raise ValueError("Potentially harmful command detected in prompt.")
     return prompt
 
 
 class Activity(BaseModel):
-    name: str = Field(..., description="Name of the activity")
-    location: str = Field(..., description="Location of the activity")
-    description: str = Field(..., description="Description of the activity")
-    date: str = Field(..., description="Date of the activity")
-    cousine: str = Field(..., description="Cousine of the restaurant")
-    why_its_suitable: str = Field(..., description="Why it's suitable for the traveler")
-    reviews: Optional[List[str]] = Field(..., description="List of reviews")
-    rating: Optional[float] = Field(..., description="Rating of the activity")
+    name: str
+    location: str
+    description: str
+    date: str
+    cousine: str
+    why_its_suitable: str
+    reviews: Optional[List[str]]
+    rating: Optional[float]
+
 
 class DayPlan(BaseModel):
-	date: str = Field(..., description="Date of the day")
-	activities: List[Activity] = Field(..., description="List of activities")
-	restaurants: List[str] = Field(..., description="List of restaurants")
-	flight: Optional[str] = Field(None, description="Flight information")
+    date: str
+    activities: List[Activity]
+    restaurants: List[str]
+    flight: Optional[str] = None
+
 
 class Itinerary(BaseModel):
-  name: str = Field(..., description="Name of the itinerary, something funny")
-  day_plans: List[DayPlan] = Field(..., description="List of day plans")
-  hotel: str = Field(..., description="Hotel information")
+    name: str
+    day_plans: List[DayPlan]
+    hotel: str
+
 
 @CrewBase
 class SurpriseTravelCrew():
-    """SurpriseTravel crew"""
-    agents_config = 'config/agents.yaml'
-    tasks_config = 'config/tasks.yaml'
+    # ✅ FIX: absolute paths
+    agents_config = os.path.join(BASE_DIR, "config/agents.yaml")
+    tasks_config = os.path.join(BASE_DIR, "config/tasks.yaml")
 
     @agent
     def personalized_activity_planner(self) -> Agent:
         return Agent(
             config=self.agents_config['personalized_activity_planner'],
-            tools=[SerperDevTool(), ScrapeWebsiteTool()], # Example of custom tool, loaded at the beginning of file
+            tools=[search_tool, scrape_tool],
             verbose=True,
             allow_delegation=False,
         )
 
-
-
     @agent
     def restaurant_scout(self) -> Agent:
-        sanitized_config = sanitize_prompt(str(self.agents_config['restaurant_scout']))
+        sanitize_prompt(str(self.agents_config['restaurant_scout']))
         return Agent(
-            config=self.agents_config['restaurant_scout'], # Using original config as sanitized string can't be passed back to config dict easily without more logic
-            tools=[SerperDevTool(), ScrapeWebsiteTool()],
+            config=self.agents_config['restaurant_scout'],
+            tools=[search_tool, scrape_tool],
             verbose=True,
             allow_delegation=False,
         )
@@ -96,7 +87,7 @@ class SurpriseTravelCrew():
     def itinerary_compiler(self) -> Agent:
         return Agent(
             config=self.agents_config['itinerary_compiler'],
-            tools=[SerperDevTool()],
+            tools=[search_tool],
             verbose=True,
             allow_delegation=False,
         )
@@ -125,12 +116,10 @@ class SurpriseTravelCrew():
 
     @crew
     def crew(self) -> Crew:
-        """Creates the SurpriseTravel crew"""
         return Crew(
-            agents=self.agents, # Automatically created by the @agent decorator
-            tasks=self.tasks, # Automatically created by the @task decorator
+            agents=self.agents,
+            tasks=self.tasks,
             process=Process.sequential,
             verbose=True,
             # process=Process.hierarchical, # In case you want to use that instead https://docs.crewai.com/how-to/Hierarchical/
         )
-# modified
