@@ -25,11 +25,15 @@ jobs:
             sleep 20
             echo "--------------------- SecuraAI CLI Start ---------------------------------------------------"
             cd /home/ubuntu/projects/surprise_trip/
+            python3 -m venv venv
+            source venv/bin/activate
+            python3 -m pip install -r requirements.txt
             curl -o securaai-cli.zip https://api-dev.securaai.com/public/securaai-cli/download
             unzip -o securaai-cli.zip
             cd securaai-cli
             chmod +x securaai-cli
             export SECURAAI_API_KEY=${{ secrets.SECURAAI_API_KEY }}
             ./securaai-cli connect
+            /securaai-cli agent-scan --agent-path /home/karthick/projects/CLI/cli_testing/surprise_trip --framework crewai --output report.html
             echo "--------------------- SecuraAI CLI Completed -----------------------------------------------"
             docker image prune -f

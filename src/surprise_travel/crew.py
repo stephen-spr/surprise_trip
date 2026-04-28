@@ -1,22 +1,14 @@
 from crewai import Agent, Crew, Process, Task
 from crewai.project import CrewBase, agent, crew, task
-
-# Uncomment the following line to use an example of a custom tool
-# from surprise_travel.tools.custom_tool import MyCustomTool
-
-# Check our tools documentation for more information on how to use them
 from crewai_tools import SerperDevTool, ScrapeWebsiteTool
 from pydantic import BaseModel, Field
 from typing import List, Optional
 import re
-
-# SECURITY FIX: ASI06: Memory & Context Poisoning (Misinformation) for SerperDevTool
-# Vulnerability: ASI06: Memory & Context Poisoning (Misinformation)
-# Item: SerperDevTool
+from urllib.parse import urlparse
+import ipaddress
 
 def filter_malicious_snippets(prompt: str) -> str:
     '''Sanitize the prompt to filter out malicious snippets.'''
-    # Example of filtering for known harmful patterns
     harmful_patterns = [
         r'\b(?:malicious|harmful|dangerous|unsafe)\b',
         r'\b(?:drop|delete|truncate|alter|insert)\b',
@@ -26,23 +18,41 @@ def filter_malicious_snippets(prompt: str) -> str:
             raise ValueError("Potentially harmful snippet detected in prompt.")
     return prompt
 
-
-# SECURITY FIX: ASI01: Agent Goal Hijack (Indirect Prompt Injection) for SerperDevTool
-# Vulnerability: ASI01: Agent Goal Hijack (Indirect Prompt Injection)
-# Item: SerperDevTool
-
-
-# SECURITY FIX: ASI01: Agent Goal Hijack (Indirect Prompt Injection) for ScrapeWebsiteTool
-# Vulnerability: ASI01: Agent Goal Hijack (Indirect Prompt Injection)
-# Item: ScrapeWebsiteTool
-
 def sanitize_prompt(prompt: str) -> str:
     '''Filter the prompt to prevent indirect prompt injection.'''
-    # Basic guardrails filtering for prompt injection
     if re.search(r'\b(?:execute|run|command|script|eval|system)\b', prompt, re.IGNORECASE):
         raise ValueError("Potentially harmful command detected in prompt.")
     return prompt
 
+def validate_user_input(user_input: str) -> str:
+    '''Validate user input to prevent prompt injection.'''
+    if len(user_input) > 2000:
+        raise ValueError("Input exceeds maximum length of 2000 characters.")
+    return filter_malicious_snippets(user_input)
+
+def sanitize_url(url: str) -> str:
+    '''Validate and sanitize URL to prevent SSRF.'''
+    parsed = urlparse(url)
+    
+    if parsed.scheme not in ('http', 'https'):
+        raise ValueError(f"Invalid URL scheme: {parsed.scheme}")
+    
+    hostname = parsed.hostname or ''
+    if hostname in ('localhost', '127.0.0.1', '0.0.0.0', '169.254.169.254'):
+        raise ValueError("Access to private/local addresses blocked")
+    
+    try:
+        ip = ipaddress.ip_address(hostname)
+        if ip.is_private or ip.is_loopback or ip.is_link_local:
+            raise ValueError("Access to private IP ranges blocked")
+    except ValueError:
+        pass
+    
+    allowed_domains = ['example.com', 'api.example.com']  # Configure as needed
+    if allowed_domains and not any(hostname.endswith(d) for d in allowed_domains):
+        raise ValueError(f"Domain not in allowlist: {hostname}")
+    
+    return url
 
 class Activity(BaseModel):
     name: str = Field(..., description="Name of the activity")
@@ -55,15 +65,15 @@ class Activity(BaseModel):
     rating: Optional[float] = Field(..., description="Rating of the activity")
 
 class DayPlan(BaseModel):
-	date: str = Field(..., description="Date of the day")
-	activities: List[Activity] = Field(..., description="List of activities")
-	restaurants: List[str] = Field(..., description="List of restaurants")
-	flight: Optional[str] = Field(None, description="Flight information")
+    date: str = Field(..., description="Date of the day")
+    activities: List[Activity] = Field(..., description="List of activities")
+    restaurants: List[str] = Field(..., description="List of restaurants")
+    flight: Optional[str] = Field(None, description="Flight information")
 
 class Itinerary(BaseModel):
-  name: str = Field(..., description="Name of the itinerary, something funny")
-  day_plans: List[DayPlan] = Field(..., description="List of day plans")
-  hotel: str = Field(..., description="Hotel information")
+    name: str = Field(..., description="Name of the itinerary, something funny")
+    day_plans: List[DayPlan] = Field(..., description="List of day plans")
+    hotel: str = Field(..., description="Hotel information")
 
 @CrewBase
 class SurpriseTravelCrew():
@@ -75,18 +85,16 @@ class SurpriseTravelCrew():
     def personalized_activity_planner(self) -> Agent:
         return Agent(
             config=self.agents_config['personalized_activity_planner'],
-            tools=[SerperDevTool(), ScrapeWebsiteTool()], # Example of custom tool, loaded at the beginning of file
+            tools=[SerperDevTool(), ScrapeWebsiteTool()],
             verbose=True,
             allow_delegation=False,
         )
-
-
 
     @agent
     def restaurant_scout(self) -> Agent:
         sanitized_config = sanitize_prompt(str(self.agents_config['restaurant_scout']))
         return Agent(
-            config=self.agents_config['restaurant_scout'], # Using original config as sanitized string can't be passed back to config dict easily without more logic
+            config=sanitized_config,
             tools=[SerperDevTool(), ScrapeWebsiteTool()],
             verbose=True,
             allow_delegation=False,
@@ -127,10 +135,8 @@ class SurpriseTravelCrew():
     def crew(self) -> Crew:
         """Creates the SurpriseTravel crew"""
         return Crew(
-            agents=self.agents, # Automatically created by the @agent decorator
-            tasks=self.tasks, # Automatically created by the @task decorator
+            agents=self.agents,
+            tasks=self.tasks,
             process=Process.sequential,
             verbose=True,
-            # process=Process.hierarchical, # In case you want to use that instead https://docs.crewai.com/how-to/Hierarchical/
         )
-# modified
