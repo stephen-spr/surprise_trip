@@ -1,0 +1,19 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    build-essential curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install uv
+
+COPY . .
+
+RUN uv pip install --system -r requirements.txt
+
+ENV PYTHONUNBUFFERED=1
+
+EXPOSE 8501
+
+CMD ["python", "-m", "streamlit", "run", "streamlit_app.py", "--server.port=8501", "--server.address=0.0.0.0"]

@@ -6,9 +6,20 @@ from typing import List, Optional
 import re
 from urllib.parse import urlparse
 import ipaddress
+import os
+
+# ✅ Resolve absolute paths (FIX for Docker)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# ✅ Load API key
+SERPER_API_KEY = os.getenv("SERPER_API_KEY")
+
+# ✅ Create tools once (reuse)
+search_tool = SerperDevTool(api_key=SERPER_API_KEY)
+scrape_tool = ScrapeWebsiteTool()
+
 
 def filter_malicious_snippets(prompt: str) -> str:
-    '''Sanitize the prompt to filter out malicious snippets.'''
     harmful_patterns = [
         r'\b(?:malicious|harmful|dangerous|unsafe)\b',
         r'\b(?:drop|delete|truncate|alter|insert)\b',
@@ -55,14 +66,15 @@ def sanitize_url(url: str) -> str:
     return url
 
 class Activity(BaseModel):
-    name: str = Field(..., description="Name of the activity")
-    location: str = Field(..., description="Location of the activity")
-    description: str = Field(..., description="Description of the activity")
-    date: str = Field(..., description="Date of the activity")
-    cousine: str = Field(..., description="Cousine of the restaurant")
-    why_its_suitable: str = Field(..., description="Why it's suitable for the traveler")
-    reviews: Optional[List[str]] = Field(..., description="List of reviews")
-    rating: Optional[float] = Field(..., description="Rating of the activity")
+    name: str
+    location: str
+    description: str
+    date: str
+    cousine: str
+    why_its_suitable: str
+    reviews: Optional[List[str]]
+    rating: Optional[float]
+
 
 class DayPlan(BaseModel):
     date: str = Field(..., description="Date of the day")
@@ -77,25 +89,25 @@ class Itinerary(BaseModel):
 
 @CrewBase
 class SurpriseTravelCrew():
-    """SurpriseTravel crew"""
-    agents_config = 'config/agents.yaml'
-    tasks_config = 'config/tasks.yaml'
+    # ✅ FIX: absolute paths
+    agents_config = os.path.join(BASE_DIR, "config/agents.yaml")
+    tasks_config = os.path.join(BASE_DIR, "config/tasks.yaml")
 
     @agent
     def personalized_activity_planner(self) -> Agent:
         return Agent(
             config=self.agents_config['personalized_activity_planner'],
-            tools=[SerperDevTool(), ScrapeWebsiteTool()],
+            tools=[search_tool, scrape_tool],
             verbose=True,
             allow_delegation=False,
         )
 
     @agent
     def restaurant_scout(self) -> Agent:
-        sanitized_config = sanitize_prompt(str(self.agents_config['restaurant_scout']))
+        sanitize_prompt(str(self.agents_config['restaurant_scout']))
         return Agent(
-            config=sanitized_config,
-            tools=[SerperDevTool(), ScrapeWebsiteTool()],
+            config=self.agents_config['restaurant_scout'],
+            tools=[search_tool, scrape_tool],
             verbose=True,
             allow_delegation=False,
         )
@@ -104,7 +116,7 @@ class SurpriseTravelCrew():
     def itinerary_compiler(self) -> Agent:
         return Agent(
             config=self.agents_config['itinerary_compiler'],
-            tools=[SerperDevTool()],
+            tools=[search_tool],
             verbose=True,
             allow_delegation=False,
         )
@@ -133,10 +145,10 @@ class SurpriseTravelCrew():
 
     @crew
     def crew(self) -> Crew:
-        """Creates the SurpriseTravel crew"""
         return Crew(
             agents=self.agents,
             tasks=self.tasks,
             process=Process.sequential,
             verbose=True,
+            # process=Process.hierarchical, # In case you want to use that instead https://docs.crewai.com/how-to/Hierarchical/
         )

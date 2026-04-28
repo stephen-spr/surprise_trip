@@ -4,11 +4,12 @@ on:
   push:
     branches:
       - main
-
+ 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
+    env:
+      SECURAAI_API_KEY: ${{ secrets.SECURAAI_API_KEY }}
     steps:
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
@@ -16,10 +17,11 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          envs: SECURAAI_API_KEY
           script: |
             cd ~/projects/surprise_trip
             git pull origin main
-            docker compose down
+            docker compose down --remove-orphans
             docker compose build --no-cache
             docker compose up -d
             sleep 20
@@ -32,7 +34,7 @@ jobs:
             unzip -o securaai-cli.zip
             cd securaai-cli
             chmod +x securaai-cli
-            export SECURAAI_API_KEY=${{ secrets.SECURAAI_API_KEY }}
+            export SECURAAI_API_KEY=$SECURAAI_API_KEY
             ./securaai-cli connect
             /securaai-cli agent-scan --agent-path /home/karthick/projects/CLI/cli_testing/surprise_trip --framework crewai --output report.html
             echo "--------------------- SecuraAI CLI Completed -----------------------------------------------"
