@@ -36,6 +36,6 @@ jobs:
             chmod +x securaai-cli
             export SECURAAI_API_KEY=$SECURAAI_API_KEY
             ./securaai-cli connect
-            /securaai-cli agent-scan --agent-path /home/karthick/projects/CLI/cli_testing/surprise_trip --framework crewai --output report.html
+            ./securaai-cli agent-scan --agent-path /home/karthick/projects/CLI/cli_testing/surprise_trip --framework crewai --output report.html
             echo "--------------------- SecuraAI CLI Completed -----------------------------------------------"
             docker image prune -f
