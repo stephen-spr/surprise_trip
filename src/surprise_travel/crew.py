@@ -100,6 +100,7 @@ class SurpriseTravelCrew():
             tools=[search_tool, scrape_tool],
             verbose=True,
             allow_delegation=False,
+            llm="gpt-4o-mini",
         )
 
     @agent
@@ -110,6 +111,7 @@ class SurpriseTravelCrew():
             tools=[search_tool, scrape_tool],
             verbose=True,
             allow_delegation=False,
+            llm="gpt-4o-mini",
         )
 
     @agent
@@ -119,6 +121,7 @@ class SurpriseTravelCrew():
             tools=[search_tool],
             verbose=True,
             allow_delegation=False,
+            llm="gpt-4o-mini",
         )
 
     @task
