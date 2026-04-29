@@ -152,4 +152,3 @@ class SurpriseTravelCrew():
             verbose=True,
             # process=Process.hierarchical, # In case you want to use that instead https://docs.crewai.com/how-to/Hierarchical/
         )
-
