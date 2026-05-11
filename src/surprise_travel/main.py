@@ -2,7 +2,6 @@
 import sys
 from surprise_travel.crew import SurpriseTravelCrew
 
-
 def run():
     inputs = {
         'origin': 'São Paulo, GRU',
